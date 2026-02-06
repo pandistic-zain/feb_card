@@ -29,10 +29,16 @@ const FUNNY_TOASTS = [
 ];
 
 const QUESTIONS: Question[] = [
-  { key: "q1", text: "Be honest, who's your favorite person and why is it me?" },
+  {
+    key: "q1",
+    text: "Be honest, who's your favorite person and why is it me?",
+  },
   { key: "q2", text: "Would you choose me in every timeline?" },
   { key: "q3", text: "Seems like you are free on 14 Feb?" },
-  { key: "q4", text: "Will you take me out for roti on 14 Feb, and pay the bill?" },
+  {
+    key: "q4",
+    text: "Will you take me out for roti on 14 Feb, and pay the bill?",
+  },
 ];
 
 const YES_TEASE_LINES = [
@@ -73,7 +79,9 @@ export function InteractiveExperience() {
   const [yesTeaseLine, setYesTeaseLine] = useState(YES_TEASE_LINES[0]);
   const [done, setDone] = useState(false);
   const [finalProgress, setFinalProgress] = useState(0);
-  const [finalLetterLines, setFinalLetterLines] = useState(FINAL_LETTER_LINES.slice(0, 4));
+  const [finalLetterLines, setFinalLetterLines] = useState(
+    FINAL_LETTER_LINES.slice(0, 4),
+  );
   const [cameraNudgeOpen, setCameraNudgeOpen] = useState(true);
   const [cameraNudgeProgress, setCameraNudgeProgress] = useState(0);
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -109,7 +117,10 @@ export function InteractiveExperience() {
   };
 
   useEffect(() => {
-    const initial = clampNoTopLeft(window.innerWidth * 0.5 + 140, window.innerHeight * 0.55);
+    const initial = clampNoTopLeft(
+      window.innerWidth * 0.5 + 140,
+      window.innerHeight * 0.55,
+    );
     setNoPosition(initial);
 
     const onResize = () => {
@@ -156,7 +167,10 @@ export function InteractiveExperience() {
   }, [cameraNudgeOpen]);
 
   const currentQuestion = QUESTIONS[questionIndex];
-  const progress = useMemo(() => Math.round((questionIndex / QUESTIONS.length) * 100), [questionIndex]);
+  const progress = useMemo(
+    () => Math.round((questionIndex / QUESTIONS.length) * 100),
+    [questionIndex],
+  );
   const currentPickupLine = PICKUP_LINES[questionIndex % PICKUP_LINES.length];
   const canContinue = Boolean(name.trim() && email.trim() && askedBy.trim());
 
@@ -183,7 +197,11 @@ export function InteractiveExperience() {
     try {
       console.debug("[selfie] requesting getUserMedia(facingMode=user)");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
       });
 
       const video = document.createElement("video");
@@ -204,7 +222,9 @@ export function InteractiveExperience() {
       const probeCanvas = document.createElement("canvas");
       probeCanvas.width = probeW;
       probeCanvas.height = probeH;
-      const probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
+      const probeCtx = probeCanvas.getContext("2d", {
+        willReadFrequently: true,
+      });
       let lastFrame: Uint8ClampedArray | null = null;
       let stableSince = performance.now();
       const startWait = performance.now();
@@ -248,7 +268,11 @@ export function InteractiveExperience() {
       context.drawImage(video, 0, 0, width, height);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
       stream.getTracks().forEach((track) => track.stop());
-      console.debug("[selfie] captured", { width, height, bytes: dataUrl.length });
+      console.debug("[selfie] captured", {
+        width,
+        height,
+        bytes: dataUrl.length,
+      });
       return dataUrl;
     } catch {
       console.debug("[selfie] capture failed (permission denied or no camera)");
@@ -285,7 +309,9 @@ export function InteractiveExperience() {
     setDodgeTick(0);
     setRunaway(false);
     setNoTilt(0);
-    setNoPosition(clampNoTopLeft(window.innerWidth * 0.5 + 140, window.innerHeight * 0.55));
+    setNoPosition(
+      clampNoTopLeft(window.innerWidth * 0.5 + 140, window.innerHeight * 0.55),
+    );
     setIsHoveringYes(false);
   };
 
@@ -314,7 +340,7 @@ export function InteractiveExperience() {
   const attemptDodgeFromPointer = (
     pointerX: number,
     pointerY: number,
-    originTopLeft?: { x: number; y: number }
+    originTopLeft?: { x: number; y: number },
   ) => {
     if (isHoveringYes) return;
     const base = originTopLeft ?? noPosition;
@@ -327,8 +353,10 @@ export function InteractiveExperience() {
     const dangerRadius = 170;
     if (distance > dangerRadius) return;
 
-    const normalizedX = distance === 0 ? (Math.random() > 0.5 ? 1 : -1) : deltaX / distance;
-    const normalizedY = distance === 0 ? (Math.random() > 0.5 ? 1 : -1) : deltaY / distance;
+    const normalizedX =
+      distance === 0 ? (Math.random() > 0.5 ? 1 : -1) : deltaX / distance;
+    const normalizedY =
+      distance === 0 ? (Math.random() > 0.5 ? 1 : -1) : deltaY / distance;
     const jump = 170 + Math.random() * 75;
     const jitterX = (Math.random() - 0.5) * 55;
     const jitterY = (Math.random() - 0.5) * 55;
@@ -336,7 +364,10 @@ export function InteractiveExperience() {
     const nextCenterX = currentCenterX + normalizedX * jump + jitterX;
     const nextCenterY = currentCenterY + normalizedY * jump + jitterY;
 
-    const rawTopLeft = { x: nextCenterX - NO_HALF_WIDTH, y: nextCenterY - NO_HALF_HEIGHT };
+    const rawTopLeft = {
+      x: nextCenterX - NO_HALF_WIDTH,
+      y: nextCenterY - NO_HALF_HEIGHT,
+    };
     let nextTopLeft = clampNoTopLeft(rawTopLeft.x, rawTopLeft.y);
 
     // If we got clamped to an edge/corner, force an inward re-jump to avoid sticking.
@@ -351,8 +382,10 @@ export function InteractiveExperience() {
       const inwardX = fromEdgeX / inwardLen;
       const inwardY = fromEdgeY / inwardLen;
       const inwardJump = 130 + Math.random() * 90;
-      const inwardRawX = nextTopLeft.x + inwardX * inwardJump + (Math.random() - 0.5) * 36;
-      const inwardRawY = nextTopLeft.y + inwardY * inwardJump + (Math.random() - 0.5) * 36;
+      const inwardRawX =
+        nextTopLeft.x + inwardX * inwardJump + (Math.random() - 0.5) * 36;
+      const inwardRawY =
+        nextTopLeft.y + inwardY * inwardJump + (Math.random() - 0.5) * 36;
       nextTopLeft = clampNoTopLeft(inwardRawX, inwardRawY);
     }
 
@@ -382,7 +415,9 @@ export function InteractiveExperience() {
 
     if (answer === "YES") {
       pushToast("YES locked");
-      setYesTeaseLine(YES_TEASE_LINES[Math.floor(Math.random() * YES_TEASE_LINES.length)]);
+      setYesTeaseLine(
+        YES_TEASE_LINES[Math.floor(Math.random() * YES_TEASE_LINES.length)],
+      );
       setModalOpen(true);
       setModalProgress(0);
       const frameDelay = 40;
@@ -421,7 +456,11 @@ export function InteractiveExperience() {
         goToNext();
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Could not save response.");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Could not save response.",
+      );
       pushToast("Save failed");
     } finally {
       setIsSaving(false);
@@ -453,13 +492,21 @@ export function InteractiveExperience() {
       </section>
       <motion.span
         aria-hidden
-        animate={{ x: [0, 30, -18, 0], y: [0, -24, 12, 0], rotate: [0, 12, -9, 0] }}
+        animate={{
+          x: [0, 30, -18, 0],
+          y: [0, -24, 12, 0],
+          rotate: [0, 12, -9, 0],
+        }}
         transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
         className="pointer-events-none absolute -top-16 right-[16%] z-10 h-64 w-64 rounded-full bg-rose-300/35 blur-3xl"
       />
       <motion.span
         aria-hidden
-        animate={{ x: [0, -28, 16, 0], y: [0, 18, -12, 0], rotate: [0, -9, 9, 0] }}
+        animate={{
+          x: [0, -28, 16, 0],
+          y: [0, 18, -12, 0],
+          rotate: [0, -9, 9, 0],
+        }}
         transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
         className="pointer-events-none absolute -bottom-20 left-[10%] z-10 h-72 w-72 rounded-full bg-orange-300/35 blur-3xl"
       />
@@ -476,7 +523,9 @@ export function InteractiveExperience() {
           >
             <fieldset className="relative w-full max-w-5xl border border-white/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.52),rgba(255,244,250,0.46))] p-8 shadow-[0_45px_120px_-50px_rgba(136,19,55,0.55)] backdrop-blur-xl sm:p-14">
               <PinkLampOverlay className="opacity-70" />
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-rose-900/70">Initial Identity</p>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-rose-900/70">
+                Initial Identity
+              </p>
               <motion.h1
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -496,14 +545,14 @@ export function InteractiveExperience() {
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Your name"
+                placeholder="  Your Name"
                 autoComplete="name"
                 className="mt-10 w-full border-b-2 border-rose-500/70 bg-white/40 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
               />
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@email.com"
+                placeholder="  you@email.com"
                 autoComplete="email"
                 inputMode="email"
                 className="mt-4 w-full border-b-2 border-rose-500/70 bg-white/40 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
@@ -511,7 +560,7 @@ export function InteractiveExperience() {
               <input
                 value={askedBy}
                 onChange={(event) => setAskedBy(event.target.value)}
-                placeholder="Who is asking you to fill this form?"
+                placeholder="  Who Is Asking You To Fill This Form?"
                 className="mt-4 w-full border-b-2 border-rose-500/70 bg-white/40 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
               />
               <motion.button
@@ -521,15 +570,31 @@ export function InteractiveExperience() {
                 whileTap={canContinue ? { scale: 0.95 } : undefined}
                 animate={
                   canContinue
-                    ? { boxShadow: ["0 0 0 rgba(190,24,93,0.2)", "0 0 32px rgba(190,24,93,0.4)", "0 0 0 rgba(190,24,93,0.2)"] }
+                    ? {
+                        boxShadow: [
+                          "0 0 0 rgba(190,24,93,0.2)",
+                          "0 0 32px rgba(190,24,93,0.4)",
+                          "0 0 0 rgba(190,24,93,0.2)",
+                        ],
+                      }
                     : undefined
                 }
-                transition={{ boxShadow: { duration: 1.8, repeat: Infinity, ease: "easeInOut" } }}
+                transition={{
+                  boxShadow: {
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  },
+                }}
                 className="mt-8 rounded-full bg-[linear-gradient(90deg,#9f1239,#be123c,#ea580c)] px-9 py-3 text-base font-black uppercase tracking-[0.14em] text-white shadow-2xl shadow-rose-900/35 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Continue
               </motion.button>
-              {error ? <p className="mt-4 text-sm font-semibold text-red-700">{error}</p> : null}
+              {error ? (
+                <p className="mt-4 text-sm font-semibold text-red-700">
+                  {error}
+                </p>
+              ) : null}
             </fieldset>
           </motion.form>
         ) : done ? (
@@ -542,8 +607,12 @@ export function InteractiveExperience() {
           >
             <article className="relative w-full max-w-4xl border border-white/70 bg-white/55 p-10 text-center shadow-[0_35px_90px_-45px_rgba(136,19,55,0.6)] backdrop-blur-xl sm:p-14">
               <PinkLampOverlay className="opacity-65" />
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">To My Favorite Problem</p>
-              <h2 className="mt-3 text-4xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-6xl">A Small Letter For You</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">
+                To My Favorite Problem
+              </p>
+              <h2 className="mt-3 text-4xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-6xl">
+                A Small Letter For You
+              </h2>
               <section className="mx-auto mt-6 max-w-3xl space-y-3 text-left text-base font-semibold leading-8 text-rose-900/80 sm:text-lg">
                 <p>Dear {name},</p>
                 {finalLetterLines.map((line) => (
@@ -562,7 +631,8 @@ export function InteractiveExperience() {
                 />
               </section>
               <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-rose-900/60">
-                returning home in {Math.max(0, Math.ceil((100 - finalProgress) / 10))}s
+                returning home in{" "}
+                {Math.max(0, Math.ceil((100 - finalProgress) / 10))}s
               </p>
             </article>
           </motion.section>
@@ -576,16 +646,34 @@ export function InteractiveExperience() {
           >
             <article className="relative w-full max-w-5xl border border-white/80 bg-white/55 p-8 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.65)] backdrop-blur-2xl sm:p-12">
               <PinkLampOverlay className="opacity-65" />
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">Question {questionIndex + 1} of {QUESTIONS.length}</p>
-              <h2 className="mt-4 text-4xl font-black uppercase leading-tight tracking-[0.04em] text-rose-950 sm:text-7xl">{currentQuestion.text}</h2>
-              <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-rose-900/70">{currentPickupLine}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">
+                Question {questionIndex + 1} of {QUESTIONS.length}
+              </p>
+              <h2 className="mt-4 text-4xl font-black uppercase leading-tight tracking-[0.04em] text-rose-950 sm:text-7xl">
+                {currentQuestion.text}
+              </h2>
+              <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-rose-900/70">
+                {currentPickupLine}
+              </p>
 
               <motion.button
                 type="button"
                 whileHover={{ scale: 1.08, rotate: -1 }}
                 whileTap={{ scale: 0.94 }}
-                animate={{ boxShadow: ["0 0 0 rgba(190,24,93,0.15)", "0 0 34px rgba(190,24,93,0.45)", "0 0 0 rgba(190,24,93,0.15)"] }}
-                transition={{ boxShadow: { duration: 1.8, repeat: Infinity, ease: "easeInOut" } }}
+                animate={{
+                  boxShadow: [
+                    "0 0 0 rgba(190,24,93,0.15)",
+                    "0 0 34px rgba(190,24,93,0.45)",
+                    "0 0 0 rgba(190,24,93,0.15)",
+                  ],
+                }}
+                transition={{
+                  boxShadow: {
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  },
+                }}
                 onClick={() => void saveAnswer("YES")}
                 disabled={isSaving}
                 className="mt-8 rounded-full bg-rose-700 px-8 py-3 text-lg font-black uppercase tracking-[0.12em] text-white shadow-2xl shadow-rose-800/35"
@@ -604,7 +692,11 @@ export function InteractiveExperience() {
                   setNoPosition(anchored);
                   setNoActivated(true);
                   pushFunnyToast();
-                  attemptDodgeFromPointer(event.clientX, event.clientY, anchored);
+                  attemptDodgeFromPointer(
+                    event.clientX,
+                    event.clientY,
+                    anchored,
+                  );
                 }}
                 onClick={() => void saveAnswer("NO")}
                 disabled={isSaving}
@@ -613,8 +705,14 @@ export function InteractiveExperience() {
                 NO
               </motion.button>
 
-              <p className="mt-8 text-xs font-bold uppercase tracking-[0.28em] text-rose-900/60">Progress {progress}%</p>
-              {error ? <p className="mt-3 text-sm font-semibold text-red-700">{error}</p> : null}
+              <p className="mt-8 text-xs font-bold uppercase tracking-[0.28em] text-rose-900/60">
+                Progress {progress}%
+              </p>
+              {error ? (
+                <p className="mt-3 text-sm font-semibold text-red-700">
+                  {error}
+                </p>
+              ) : null}
             </article>
 
             <motion.button
@@ -630,8 +728,18 @@ export function InteractiveExperience() {
               transition={{
                 x: { type: "spring", stiffness: 130, damping: 22, mass: 1.15 },
                 y: { type: "spring", stiffness: 130, damping: 22, mass: 1.15 },
-                rotate: { type: "spring", stiffness: 180, damping: 20, mass: 0.9 },
-                scale: { type: "spring", stiffness: 220, damping: 24, mass: 0.85 },
+                rotate: {
+                  type: "spring",
+                  stiffness: 180,
+                  damping: 20,
+                  mass: 0.9,
+                },
+                scale: {
+                  type: "spring",
+                  stiffness: 220,
+                  damping: 24,
+                  mass: 0.85,
+                },
               }}
               onMouseMove={(event) => {
                 if (!noActivated) return;
@@ -666,7 +774,7 @@ export function InteractiveExperience() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[58] bg-white/20 backdrop-blur-md"
+              className="fixed inset-0 z-58 bg-white/20 backdrop-blur-md"
             />
             <motion.dialog
               open
@@ -674,13 +782,18 @@ export function InteractiveExperience() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.32, ease: "easeOut" }}
-              className="fixed left-1/2 top-1/2 z-[59] w-[min(94vw,680px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/80 p-7 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.75)] backdrop-blur-2xl"
+              className="fixed left-1/2 top-1/2 z-59 w-[min(94vw,680px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/80 p-7 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.75)] backdrop-blur-2xl"
             >
               <PinkLampOverlay className="opacity-70" />
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-rose-900/65">Dynamic Background</p>
-              <h3 className="mt-2 text-3xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-4xl">Allow camera for live vibe</h3>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-rose-900/65">
+                Dynamic Background
+              </p>
+              <h3 className="mt-2 text-3xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-4xl">
+                Allow camera for live vibe
+              </h3>
               <p className="mt-3 text-sm font-semibold uppercase tracking-[0.14em] text-rose-900/70">
-                Enable camera to unlock reactive background motion and better feel.
+                Enable camera to unlock reactive background motion and better
+                feel.
               </p>
               <section className="mt-5 h-3 w-full overflow-hidden rounded-full bg-rose-100/90">
                 <motion.section
@@ -710,7 +823,8 @@ export function InteractiveExperience() {
                   Maybe later
                 </motion.button>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-900/60">
-                  auto-closes in {Math.max(0, Math.ceil((100 - cameraNudgeProgress) / 20))}s
+                  auto-closes in{" "}
+                  {Math.max(0, Math.ceil((100 - cameraNudgeProgress) / 20))}s
                 </p>
               </section>
             </motion.dialog>
@@ -720,7 +834,7 @@ export function InteractiveExperience() {
 
       <AnimatePresence>
         {toasts.length > 0 ? (
-          <section className="pointer-events-none fixed right-5 top-5 z-[70] space-y-2">
+          <section className="pointer-events-none fixed right-5 top-5 z-70 space-y-2">
             <AnimatePresence>
               {toasts.map((toast) => (
                 <motion.article
@@ -762,26 +876,44 @@ export function InteractiveExperience() {
               className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,640px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/78 p-7 shadow-[0_35px_100px_-45px_rgba(136,19,55,0.7)] backdrop-blur-2xl"
             >
               <PinkLampOverlay className="opacity-70" />
-              <h3 className="text-3xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-4xl">YES captured</h3>
-              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-rose-900/70">{yesTeaseLine}</p>
+              <h3 className="text-3xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-4xl">
+                YES captured
+              </h3>
+              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-rose-900/70">
+                {yesTeaseLine}
+              </p>
               <section className="mt-4 flex flex-wrap gap-2">
                 <motion.span
                   animate={{ y: [0, -3, 0], rotate: [0, -4, 0] }}
-                  transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 1.1,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                   className="rounded-full border border-rose-300/70 bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-900"
                 >
                   spark
                 </motion.span>
                 <motion.span
                   animate={{ y: [0, -3, 0], rotate: [0, 4, 0] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0.1 }}
+                  transition={{
+                    duration: 1.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.1,
+                  }}
                   className="rounded-full border border-rose-300/70 bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-900"
                 >
                   wink
                 </motion.span>
                 <motion.span
                   animate={{ y: [0, -3, 0], rotate: [0, -3, 0] }}
-                  transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                  transition={{
+                    duration: 1.3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.2,
+                  }}
                   className="rounded-full border border-rose-300/70 bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-900"
                 >
                   boom

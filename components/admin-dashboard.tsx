@@ -250,7 +250,7 @@ export function AdminDashboard({ slug }: Props) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="fixed left-1/2 top-1/2 z-[81] w-[min(94vw,640px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/85 p-7 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.75)] backdrop-blur-2xl"
+              className="fixed left-1/2 top-1/2 z-81 w-[min(94vw,640px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/85 p-7 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.75)] backdrop-blur-2xl"
             >
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">
                 Confirm Delete

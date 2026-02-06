@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Valentine Card",
+  title: "FEB Card",
   description: "Interactive valentine card built with Next.js and Prisma",
 };
 
