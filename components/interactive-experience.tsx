@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { WebcamPixelGrid } from "@/components/ui/webcam-pixel-grid";
 import { PinkLampOverlay } from "@/components/ui/pink-lamp-overlay";
 
@@ -15,6 +15,7 @@ type Question = {
 type SonarToast = {
   id: number;
   text: string;
+  loud?: boolean;
 };
 
 const FUNNY_TOASTS = [
@@ -26,6 +27,13 @@ const FUNNY_TOASTS = [
   "Be honest... you meant YES.",
   "NO said: not today. Pick YES.",
   "Stop chasing NO. Choose YES.",
+];
+
+const CRY_TOASTS = [
+  "😭 No click detected. Nice try. Destination remains YES.",
+  "😢 That NO is under emotional stress. Please select YES.",
+  "🥲 You clicked NO? Dramatic. The button is running again.",
+  "😩 NO refuses commitment. YES is still waiting for you.",
 ];
 
 const QUESTIONS: Question[] = [
@@ -90,7 +98,9 @@ export function InteractiveExperience() {
   const [dodgeTick, setDodgeTick] = useState(0);
   const [runaway, setRunaway] = useState(false);
   const [noTilt, setNoTilt] = useState(0);
-  const [noDodgeLocked, setNoDodgeLocked] = useState(false);
+  const [noPanicBoost, setNoPanicBoost] = useState(false);
+  const staticNoButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hoverToastIntervalRef = useRef<number | null>(null);
   const [noPosition, setNoPosition] = useState(() => {
     if (typeof window === "undefined") {
       return { x: 0, y: 0 };
@@ -98,13 +108,15 @@ export function InteractiveExperience() {
     return { x: window.innerWidth * 0.5 + 140, y: window.innerHeight * 0.55 };
   });
   const [isHoveringYes, setIsHoveringYes] = useState(false);
-  const [toasts, setToasts] = useState<SonarToast[]>([]);
+  const [activeToast, setActiveToast] = useState<SonarToast | null>(null);
+  const [toastQueue, setToastQueue] = useState<SonarToast[]>([]);
+  const activeToastRef = useRef<SonarToast | null>(null);
   const MODAL_DURATION_MS = 5000;
   const FINAL_DURATION_MS = 20000;
   const CAMERA_NUDGE_DURATION_MS = 5000;
 
-  const NO_HALF_WIDTH = 90;
-  const NO_HALF_HEIGHT = 28;
+  const NO_HALF_WIDTH = 78;
+  const NO_HALF_HEIGHT = 30;
 
   const clampNoTopLeft = (x: number, y: number) => {
     const minX = 8;
@@ -130,6 +142,22 @@ export function InteractiveExperience() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!started || noActivated) return;
+    const element = staticNoButtonRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    setNoPosition(clampNoTopLeft(rect.left, rect.top));
+  }, [started, questionIndex, noActivated]);
+
+  useEffect(() => {
+    if (!started || noActivated) return;
+    const element = staticNoButtonRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    setNoPosition(clampNoTopLeft(rect.left, rect.top));
+  }, [started, questionIndex, noActivated]);
 
   useEffect(() => {
     if (!done) return;
@@ -183,17 +211,60 @@ export function InteractiveExperience() {
   const currentPickupLine = PICKUP_LINES[questionIndex % PICKUP_LINES.length];
   const canContinue = Boolean(name.trim() && email.trim() && askedBy.trim());
 
-  const pushToast = (text: string) => {
+  useEffect(() => {
+    activeToastRef.current = activeToast;
+  }, [activeToast]);
+
+  useEffect(() => {
+    if (!activeToast) {
+      if (toastQueue.length > 0) {
+        const [next, ...rest] = toastQueue;
+        setActiveToast(next);
+        setToastQueue(rest);
+      }
+      return;
+    }
+
+    const duration = activeToast.loud ? 2800 : 2300;
+    const timer = window.setTimeout(() => {
+      setActiveToast(null);
+    }, duration);
+
+    return () => window.clearTimeout(timer);
+  }, [activeToast, toastQueue]);
+
+  const pushToast = (text: string, loud = false) => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToasts((current) => [...current.slice(-2), { id, text }]);
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((item) => item.id !== id));
-    }, 2000);
+    const toast = { id, text, loud };
+    if (!activeToastRef.current) {
+      setActiveToast(toast);
+      return;
+    }
+    setToastQueue((queue) => [...queue, toast]);
   };
 
   const pushFunnyToast = () => {
     const pick = FUNNY_TOASTS[Math.floor(Math.random() * FUNNY_TOASTS.length)];
     pushToast(pick);
+  };
+
+  const pushNoClickToast = () => {
+    const pick = CRY_TOASTS[Math.floor(Math.random() * CRY_TOASTS.length)];
+    pushToast(pick, true);
+  };
+
+  const startHoverToasts = () => {
+    if (hoverToastIntervalRef.current) return;
+    pushFunnyToast();
+    hoverToastIntervalRef.current = window.setInterval(() => {
+      pushFunnyToast();
+    }, 2200);
+  };
+
+  const stopHoverToasts = () => {
+    if (!hoverToastIntervalRef.current) return;
+    window.clearInterval(hoverToastIntervalRef.current);
+    hoverToastIntervalRef.current = null;
   };
 
   const enableCameraBackground = () => {
@@ -305,9 +376,6 @@ export function InteractiveExperience() {
       void captureFrontSelfie().then((image) => {
         if (image) {
           setSelfieData(image);
-          pushToast("Camera snapshot captured");
-        } else {
-          pushToast("No selfie captured");
         }
       });
     }
@@ -350,9 +418,10 @@ export function InteractiveExperience() {
     pointerX: number,
     pointerY: number,
     originTopLeft?: { x: number; y: number },
+    force = false,
+    emitToast = false,
   ) => {
     if (isHoveringYes) return;
-    if (noDodgeLocked) return;
     const base = originTopLeft ?? noPosition;
     const currentCenterX = base.x + NO_HALF_WIDTH;
     const currentCenterY = base.y + NO_HALF_HEIGHT;
@@ -360,16 +429,18 @@ export function InteractiveExperience() {
     const deltaX = currentCenterX - pointerX;
     const deltaY = currentCenterY - pointerY;
     const distance = Math.hypot(deltaX, deltaY);
-    const dangerRadius = 170;
-    if (distance > dangerRadius) return;
+    const dangerRadius = noPanicBoost ? 380 : 320;
+    if (!force && distance > dangerRadius) return;
 
     const normalizedX =
       distance === 0 ? (Math.random() > 0.5 ? 1 : -1) : deltaX / distance;
     const normalizedY =
       distance === 0 ? (Math.random() > 0.5 ? 1 : -1) : deltaY / distance;
-    const jump = 170 + Math.random() * 75;
-    const jitterX = (Math.random() - 0.5) * 55;
-    const jitterY = (Math.random() - 0.5) * 55;
+    const jump = noPanicBoost
+      ? 320 + Math.random() * 130
+      : 240 + Math.random() * 95;
+    const jitterX = (Math.random() - 0.5) * 20;
+    const jitterY = (Math.random() - 0.5) * 20;
 
     const nextCenterX = currentCenterX + normalizedX * jump + jitterX;
     const nextCenterY = currentCenterY + normalizedY * jump + jitterY;
@@ -391,7 +462,9 @@ export function InteractiveExperience() {
       const inwardLen = Math.hypot(fromEdgeX, fromEdgeY) || 1;
       const inwardX = fromEdgeX / inwardLen;
       const inwardY = fromEdgeY / inwardLen;
-      const inwardJump = 130 + Math.random() * 90;
+      const inwardJump = noPanicBoost
+        ? 250 + Math.random() * 120
+        : 200 + Math.random() * 95;
       const inwardRawX =
         nextTopLeft.x + inwardX * inwardJump + (Math.random() - 0.5) * 36;
       const inwardRawY =
@@ -400,13 +473,23 @@ export function InteractiveExperience() {
     }
 
     setNoPosition(nextTopLeft);
-    setNoTilt(normalizedX > 0 ? 6 : -6);
+    setNoTilt(normalizedX > 0 ? (noPanicBoost ? 14 : 8) : noPanicBoost ? -14 : -8);
 
     setRunaway(true);
     setDodgeTick((value) => value + 1);
-    pushFunnyToast();
-    setNoDodgeLocked(true);
-    window.setTimeout(() => setNoDodgeLocked(false), 500);
+    if (emitToast) {
+      if (noPanicBoost) {
+        pushNoClickToast();
+      } else {
+        pushFunnyToast();
+      }
+    }
+  };
+
+  const handleNoClick = (clientX: number, clientY: number) => {
+    setNoPanicBoost(true);
+    attemptDodgeFromPointer(clientX, clientY, undefined, true, true);
+    window.setTimeout(() => setNoPanicBoost(false), 750);
   };
 
   const saveAnswer = async (answer: Answer) => {
@@ -420,8 +503,6 @@ export function InteractiveExperience() {
       snapshot = await captureFrontSelfie();
       if (snapshot) {
         setSelfieData(snapshot);
-      } else {
-        pushToast("No selfie captured");
       }
     }
 
@@ -485,7 +566,7 @@ export function InteractiveExperience() {
       onMouseMove={(event) => {
         if (!noActivated) return;
         if (isHoveringYes) return;
-        attemptDodgeFromPointer(event.clientX, event.clientY);
+        attemptDodgeFromPointer(event.clientX, event.clientY, undefined, false, false);
       }}
     >
       <section className="pointer-events-none absolute inset-0 z-0 opacity-60">
@@ -533,7 +614,7 @@ export function InteractiveExperience() {
             exit={{ opacity: 0, scale: 1.02 }}
             className="relative z-20 grid min-h-screen w-full place-items-center px-5 py-10 sm:px-10"
           >
-            <fieldset className="relative w-full max-w-5xl border border-white/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.52),rgba(255,244,250,0.46))] p-8 shadow-[0_45px_120px_-50px_rgba(136,19,55,0.55)] backdrop-blur-xl sm:p-14">
+            <fieldset className="relative w-full max-w-5xl overflow-hidden rounded-[34px] border-2 border-rose-200/75 bg-[linear-gradient(145deg,rgba(255,255,255,0.52),rgba(255,244,250,0.46))] p-8 shadow-[0_45px_120px_-50px_rgba(136,19,55,0.55)] backdrop-blur-xl sm:p-14">
               <PinkLampOverlay className="opacity-70" />
               <p className="text-sm font-black uppercase tracking-[0.22em] text-rose-900/70">
                 Initial Identity
@@ -617,7 +698,7 @@ export function InteractiveExperience() {
             exit={{ opacity: 0, y: -12 }}
             className="relative z-20 grid min-h-screen w-full place-items-center px-5 py-10 sm:px-10"
           >
-            <article className="relative w-full max-w-4xl border border-white/70 bg-white/55 p-10 text-center shadow-[0_35px_90px_-45px_rgba(136,19,55,0.6)] backdrop-blur-xl sm:p-14">
+            <article className="relative w-full max-w-4xl overflow-hidden rounded-3xl border-2 border-rose-200/75 bg-white/55 p-10 text-center shadow-[0_35px_90px_-45px_rgba(136,19,55,0.6)] backdrop-blur-xl sm:p-14">
               <PinkLampOverlay className="opacity-65" />
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">
                 To My Favorite Problem
@@ -656,7 +737,7 @@ export function InteractiveExperience() {
             exit={{ opacity: 0, y: -12 }}
             className="relative z-20 grid min-h-screen w-full place-items-center px-5 py-10 sm:px-10"
           >
-            <article className="relative w-full max-w-5xl border border-white/80 bg-white/55 p-8 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.65)] backdrop-blur-2xl sm:p-12">
+            <article className="relative w-full max-w-5xl overflow-hidden rounded-3xl border-2 border-rose-200/75 bg-white/55 p-8 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.65)] backdrop-blur-2xl sm:p-12">
               <PinkLampOverlay className="opacity-65" />
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-900/65">
                 Question {questionIndex + 1} of {QUESTIONS.length}
@@ -668,53 +749,65 @@ export function InteractiveExperience() {
                 {currentPickupLine}
               </p>
 
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.08, rotate: -1 }}
-                whileTap={{ scale: 0.94 }}
-                animate={{
-                  boxShadow: [
-                    "0 0 0 rgba(190,24,93,0.15)",
-                    "0 0 34px rgba(190,24,93,0.45)",
-                    "0 0 0 rgba(190,24,93,0.15)",
-                  ],
-                }}
-                transition={{
-                  boxShadow: {
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  },
-                }}
-                onClick={() => void saveAnswer("YES")}
-                disabled={isSaving}
-                className="mt-8 rounded-full bg-rose-700 px-8 py-3 text-lg font-black uppercase tracking-[0.12em] text-white shadow-2xl shadow-rose-800/35"
-              >
-                YES
-              </motion.button>
+              <section className="mt-8 flex items-center gap-4">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.08, rotate: -1 }}
+                  whileTap={{ scale: 0.94 }}
+                  animate={{
+                    boxShadow: [
+                      "0 0 0 rgba(190,24,93,0.15)",
+                      "0 0 34px rgba(190,24,93,0.45)",
+                      "0 0 0 rgba(190,24,93,0.15)",
+                    ],
+                  }}
+                  transition={{
+                    boxShadow: {
+                      duration: 1.8,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    },
+                  }}
+                  onClick={() => void saveAnswer("YES")}
+                  disabled={isSaving}
+                  className="rounded-full bg-rose-700 px-8 py-3 text-lg font-black uppercase tracking-[0.12em] text-white shadow-2xl shadow-rose-800/35"
+                >
+                  YES
+                </motion.button>
 
-              <motion.button
-                type="button"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: noActivated ? 0 : 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+                <motion.button
+                  ref={staticNoButtonRef}
+                  type="button"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: noActivated ? 0 : 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
                 onMouseEnter={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
                   const anchored = { x: rect.left, y: rect.top };
                   setNoPosition(anchored);
-                  setNoActivated(true);
-                  attemptDodgeFromPointer(
-                    event.clientX,
-                    event.clientY,
-                    anchored,
-                  );
+                  requestAnimationFrame(() => {
+                    setNoActivated(true);
+                    attemptDodgeFromPointer(
+                      event.clientX,
+                      event.clientY,
+                      anchored,
+                      true,
+                      false,
+                    );
+                  });
+                  startHoverToasts();
                 }}
-                onClick={() => void saveAnswer("NO")}
-                disabled={isSaving}
-                className="ml-4 mt-8 rounded-full border border-rose-800/60 bg-white/95 px-9 py-3 text-base font-black uppercase tracking-[0.14em] text-rose-900 shadow-xl"
-              >
-                NO
-              </motion.button>
+                onMouseLeave={stopHoverToasts}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleNoClick(event.clientX, event.clientY);
+                }}
+                  disabled={isSaving}
+                  className={`rounded-full border border-rose-800/60 bg-white/95 px-8 py-3 text-lg font-black uppercase tracking-[0.14em] text-rose-900 shadow-xl ${noActivated ? "pointer-events-none opacity-0" : "opacity-100"}`}
+                >
+                  NO
+                </motion.button>
+              </section>
 
               <p className="mt-8 text-xs font-bold uppercase tracking-[0.28em] text-rose-900/60">
                 Progress {progress}%
@@ -732,34 +825,49 @@ export function InteractiveExperience() {
                 x: noPosition.x,
                 y: noPosition.y,
                 rotate: runaway ? noTilt : 0,
-                scale: runaway ? 1.02 : 1,
+                scale: runaway ? (noPanicBoost ? 1.12 : 1.03) : 1,
               }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.94 }}
               transition={{
-                x: { type: "spring", stiffness: 130, damping: 22, mass: 1.15 },
-                y: { type: "spring", stiffness: 130, damping: 22, mass: 1.15 },
+                x: {
+                  type: "spring",
+                  stiffness: noPanicBoost ? 340 : 280,
+                  damping: noPanicBoost ? 19 : 22,
+                  mass: 0.78,
+                },
+                y: {
+                  type: "spring",
+                  stiffness: noPanicBoost ? 340 : 280,
+                  damping: noPanicBoost ? 19 : 22,
+                  mass: 0.78,
+                },
                 rotate: {
                   type: "spring",
-                  stiffness: 180,
-                  damping: 20,
-                  mass: 0.9,
+                  stiffness: noPanicBoost ? 300 : 230,
+                  damping: noPanicBoost ? 13 : 17,
+                  mass: 0.74,
                 },
                 scale: {
                   type: "spring",
-                  stiffness: 220,
-                  damping: 24,
-                  mass: 0.85,
+                  stiffness: noPanicBoost ? 330 : 240,
+                  damping: noPanicBoost ? 12 : 18,
+                  mass: 0.72,
                 },
               }}
-              onMouseEnter={(event) => {
+              onMouseMove={(event) => {
                 if (!noActivated) return;
                 if (isHoveringYes) return;
-                attemptDodgeFromPointer(event.clientX, event.clientY);
+                attemptDodgeFromPointer(event.clientX, event.clientY, undefined, false, false);
               }}
-              onClick={() => void saveAnswer("NO")}
+              onMouseEnter={startHoverToasts}
+              onMouseLeave={stopHoverToasts}
+              onClick={(event) => {
+                event.preventDefault();
+                handleNoClick(event.clientX, event.clientY);
+              }}
               disabled={isSaving}
-              className={`${noActivated ? "fixed left-0 top-0 z-40" : "hidden"} rounded-full border border-rose-800/60 bg-white/95 px-9 py-3 text-base font-black uppercase tracking-[0.14em] text-rose-900 shadow-2xl backdrop-blur-md`}
+              className={`${noActivated ? "fixed left-0 top-0 z-40" : "hidden"} rounded-full border border-rose-800/60 bg-white/95 px-8 py-3 text-lg font-black uppercase tracking-[0.14em] text-rose-900 shadow-2xl backdrop-blur-md`}
             >
               NO
             </motion.button>
@@ -793,7 +901,7 @@ export function InteractiveExperience() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.32, ease: "easeOut" }}
-              className="fixed left-1/2 top-1/2 z-59 w-[min(94vw,680px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/80 p-7 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.75)] backdrop-blur-2xl"
+              className="fixed left-1/2 top-1/2 z-59 w-[min(94vw,680px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border-2 border-rose-200/75 bg-white/80 p-7 shadow-[0_35px_100px_-40px_rgba(136,19,55,0.75)] backdrop-blur-2xl"
             >
               <PinkLampOverlay className="opacity-70" />
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-rose-900/65">
@@ -844,26 +952,28 @@ export function InteractiveExperience() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {toasts.length > 0 ? (
+        {activeToast ? (
           <section className="pointer-events-none fixed right-5 top-5 z-70 space-y-2">
-            <AnimatePresence>
-              {toasts.map((toast) => (
-                <motion.article
-                  key={toast.id}
-                  initial={{ opacity: 0, x: 28, scale: 0.9 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 20, scale: 0.92 }}
-                  className="relative overflow-hidden border border-rose-300/70 bg-white/85 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-rose-900 shadow-xl backdrop-blur-md"
-                >
-                  <motion.span
-                    aria-hidden
-                    className="absolute inset-0 rounded-full border border-rose-400/35"
-                    animate={{ scale: [0.7, 1.55], opacity: [0.45, 0] }}
-                    transition={{ duration: 1.1, ease: "easeOut" }}
-                  />
-                  <span className="relative z-10">{toast.text}</span>
-                </motion.article>
-              ))}
+            <AnimatePresence mode="wait">
+              <motion.article
+                key={activeToast.id}
+                initial={{ opacity: 0, x: 28, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 20, scale: 0.92 }}
+                className={`relative overflow-hidden border shadow-xl backdrop-blur-md ${
+                  activeToast.loud
+                    ? "border-rose-500/85 bg-rose-200/90 px-8 py-6 text-lg font-black uppercase tracking-[0.14em] text-rose-950 shadow-2xl"
+                    : "border-rose-300/80 bg-rose-100/90 px-6 py-5 text-base font-bold uppercase tracking-[0.16em] text-rose-900"
+                }`}
+              >
+                <motion.span
+                  aria-hidden
+                  className="absolute inset-0 rounded-full border border-rose-400/35"
+                  animate={{ scale: [0.7, 1.55], opacity: [0.45, 0] }}
+                  transition={{ duration: 1.1, ease: "easeOut" }}
+                />
+                <span className="relative z-10">{activeToast.text}</span>
+              </motion.article>
             </AnimatePresence>
           </section>
         ) : null}
@@ -884,7 +994,7 @@ export function InteractiveExperience() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 18 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
-              className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,640px)] -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-white/78 p-7 shadow-[0_35px_100px_-45px_rgba(136,19,55,0.7)] backdrop-blur-2xl"
+              className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,640px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border-2 border-rose-200/75 bg-white/78 p-7 shadow-[0_35px_100px_-45px_rgba(136,19,55,0.7)] backdrop-blur-2xl"
             >
               <PinkLampOverlay className="opacity-70" />
               <h3 className="text-3xl font-black uppercase tracking-[0.08em] text-rose-950 sm:text-4xl">
