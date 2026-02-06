@@ -3,7 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
 const payloadSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  email: z.string().trim().email().max(160),
+  askedBy: z.string().trim().min(2).max(120),
+  questionKey: z.string().trim().min(1).max(80),
+  questionText: z.string().trim().min(1).max(300),
   answer: z.enum(["YES", "NO"]),
+  selfieData: z.string().max(2_500_000).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -21,9 +27,39 @@ export async function POST(request: NextRequest) {
       null;
     const userAgent = request.headers.get("user-agent");
 
-    const created = await prisma.cardResponse.create({
+    const normalizedEmail = parsed.data.email.toLowerCase();
+    const normalizedName = parsed.data.name;
+    const normalizedAskedBy = parsed.data.askedBy.trim();
+    const selfieData = parsed.data.selfieData ?? null;
+
+    await prisma.respondent.upsert({
+      where: {
+        email_name: {
+          email: normalizedEmail,
+          name: normalizedName,
+        },
+      },
+      create: {
+        email: normalizedEmail,
+        name: normalizedName,
+        askedBy: normalizedAskedBy,
+        selfieData,
+      },
+      update: {
+        askedBy: normalizedAskedBy,
+        selfieData: selfieData ?? undefined,
+      },
+    });
+
+    const created = await prisma.interactionResponse.create({
       data: {
         answer: parsed.data.answer,
+        questionKey: parsed.data.questionKey,
+        questionText: parsed.data.questionText,
+        askedBy: normalizedAskedBy,
+        selfieData,
+        respondentEmail: normalizedEmail,
+        respondentName: normalizedName,
         ipAddress,
         userAgent,
       },
@@ -38,13 +74,27 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const [yesCount, noCount, total] = await Promise.all([
-      prisma.cardResponse.count({ where: { answer: "YES" } }),
-      prisma.cardResponse.count({ where: { answer: "NO" } }),
-      prisma.cardResponse.count(),
+    const [yesCount, noCount, total, recent] = await Promise.all([
+      prisma.interactionResponse.count({ where: { answer: "YES" } }),
+      prisma.interactionResponse.count({ where: { answer: "NO" } }),
+      prisma.interactionResponse.count(),
+      prisma.interactionResponse.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          answer: true,
+          questionKey: true,
+          questionText: true,
+          askedBy: true,
+          createdAt: true,
+          respondentEmail: true,
+          respondentName: true,
+        },
+      }),
     ]);
 
-    return NextResponse.json({ total, yesCount, noCount });
+    return NextResponse.json({ total, yesCount, noCount, recent });
   } catch (error) {
     console.error("Failed to fetch stats", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

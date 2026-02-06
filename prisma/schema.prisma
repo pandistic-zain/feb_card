@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("POSTGRES_URL")
 }
 
 enum Answer {
@@ -12,10 +12,32 @@ enum Answer {
   NO
 }
 
-model CardResponse {
-  id         String   @id @default(cuid())
-  answer     Answer
-  createdAt  DateTime @default(now())
-  userAgent  String?
-  ipAddress  String?
+model Respondent {
+  email      String
+  name       String
+  askedBy    String?
+  selfieData String?                @db.Text
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  responses  InteractionResponse[]
+
+  @@id([email, name])
+}
+
+model InteractionResponse {
+  id              String     @id @default(cuid())
+  questionKey     String
+  questionText    String
+  askedBy         String?
+  selfieData      String?    @db.Text
+  answer          Answer
+  createdAt       DateTime   @default(now())
+  respondentEmail String
+  respondentName  String
+  userAgent       String?
+  ipAddress       String?
+  respondent      Respondent @relation(fields: [respondentEmail, respondentName], references: [email, name], onDelete: Cascade)
+
+  @@index([respondentEmail, respondentName])
+  @@index([createdAt])
 }
