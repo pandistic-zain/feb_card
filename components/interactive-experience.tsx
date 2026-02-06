@@ -90,6 +90,7 @@ export function InteractiveExperience() {
   const [dodgeTick, setDodgeTick] = useState(0);
   const [runaway, setRunaway] = useState(false);
   const [noTilt, setNoTilt] = useState(0);
+  const [noDodgeLocked, setNoDodgeLocked] = useState(false);
   const [noPosition, setNoPosition] = useState(() => {
     if (typeof window === "undefined") {
       return { x: 0, y: 0 };
@@ -99,7 +100,7 @@ export function InteractiveExperience() {
   const [isHoveringYes, setIsHoveringYes] = useState(false);
   const [toasts, setToasts] = useState<SonarToast[]>([]);
   const MODAL_DURATION_MS = 5000;
-  const FINAL_DURATION_MS = 10000;
+  const FINAL_DURATION_MS = 20000;
   const CAMERA_NUDGE_DURATION_MS = 5000;
 
   const NO_HALF_WIDTH = 90;
@@ -165,6 +166,14 @@ export function InteractiveExperience() {
     }, frameDelay);
     return () => window.clearInterval(timer);
   }, [cameraNudgeOpen]);
+
+  useEffect(() => {
+    if (cameraEnabled) return;
+    const reminder = window.setInterval(() => {
+      setCameraNudgeOpen(true);
+    }, 7000);
+    return () => window.clearInterval(reminder);
+  }, [cameraEnabled]);
 
   const currentQuestion = QUESTIONS[questionIndex];
   const progress = useMemo(
@@ -343,6 +352,7 @@ export function InteractiveExperience() {
     originTopLeft?: { x: number; y: number },
   ) => {
     if (isHoveringYes) return;
+    if (noDodgeLocked) return;
     const base = originTopLeft ?? noPosition;
     const currentCenterX = base.x + NO_HALF_WIDTH;
     const currentCenterY = base.y + NO_HALF_HEIGHT;
@@ -395,6 +405,8 @@ export function InteractiveExperience() {
     setRunaway(true);
     setDodgeTick((value) => value + 1);
     pushFunnyToast();
+    setNoDodgeLocked(true);
+    window.setTimeout(() => setNoDodgeLocked(false), 500);
   };
 
   const saveAnswer = async (answer: Answer) => {
@@ -545,23 +557,23 @@ export function InteractiveExperience() {
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="  Your Name"
+                placeholder="Your Name"
                 autoComplete="name"
-                className="mt-10 w-full border-b-2 border-rose-500/70 bg-white/40 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
+                className="mt-10 w-full border-b-2 border-rose-500/70 bg-white/40 px-4 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
               />
               <input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="  you@email.com"
+                placeholder="you@email.com"
                 autoComplete="email"
                 inputMode="email"
-                className="mt-4 w-full border-b-2 border-rose-500/70 bg-white/40 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
+                className="mt-4 w-full border-b-2 border-rose-500/70 bg-white/40 px-4 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
               />
               <input
                 value={askedBy}
                 onChange={(event) => setAskedBy(event.target.value)}
-                placeholder="  Who Is Asking You To Fill This Form?"
-                className="mt-4 w-full border-b-2 border-rose-500/70 bg-white/40 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
+                placeholder="Who Is Asking You To Fill This Form?"
+                className="mt-4 w-full border-b-2 border-rose-500/70 bg-white/40 px-4 py-4 text-3xl font-semibold text-rose-950 outline-none transition focus:bg-white/60 placeholder:text-rose-400 sm:text-[2rem]"
               />
               <motion.button
                 type="submit"
@@ -691,7 +703,6 @@ export function InteractiveExperience() {
                   const anchored = { x: rect.left, y: rect.top };
                   setNoPosition(anchored);
                   setNoActivated(true);
-                  pushFunnyToast();
                   attemptDodgeFromPointer(
                     event.clientX,
                     event.clientY,
@@ -741,7 +752,7 @@ export function InteractiveExperience() {
                   mass: 0.85,
                 },
               }}
-              onMouseMove={(event) => {
+              onMouseEnter={(event) => {
                 if (!noActivated) return;
                 if (isHoveringYes) return;
                 attemptDodgeFromPointer(event.clientX, event.clientY);
